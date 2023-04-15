@@ -1,0 +1,15 @@
+Dockerfile
+*__pycache__*
+*.swp
+*.swm
+*.swn
+*.swo
+*.swl
+venv/
+venv*/
+misc/
+*.egg-info*
+build/
+dist/
+deploy.sh
+setup.py
