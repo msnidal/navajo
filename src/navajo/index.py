@@ -17,7 +17,8 @@ def _find_files(path):
 
 def get_files(project_path):
     all_files = _find_files(project_path)
-    filtration.update_gitignore(project_path) # TODO use lru_cache
+    filtration.update_gitignore(project_path)
+    filtration.update_navajoignore(project_path)
 
     index_files = {}
     for f in all_files:

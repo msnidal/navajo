@@ -2,17 +2,17 @@ import filetype
 import git
 import logging
 import os
-import platform
 import re
-import subprocess
 import traceback
+import functools
+import fnmatch
 
 from . import logconf
 
 _FILTER_LOG_ENABLED = False # TODO move to config file
 MAX_FILE_LEN = 300000
 GIT_FILES_LIST = None
-GITIGNORE_PATH = None
+NAVAJOIGNORE_LIST = None
 JS_FUNC_OR_CLASS = re.compile(
     r"(export\s+)?(class|function)\s+[A-Za-z0-9_$]+\s*"
     r"|[\w\s]*=[\s]*(async\s+)?(\([\w\s,]*\)|\w+)\s*=>"
@@ -128,15 +128,38 @@ def _init_git_files(project_path):
         '--exclude-standard').split('\n') if f]
     return [os.path.join(project_path, f) for f in files]
 
+@functools.lru_cache
 def update_gitignore(project_path):
-    global GIT_FILES_LIST, GITIGNORE_PATH
+    global GIT_FILES_LIST
     logging.debug(f"Updating gitignore cache for {project_path}")
 
-    if project_path == GITIGNORE_PATH:
-        return
-
     GIT_FILES_LIST = _init_git_files(project_path)
-    GITIGNORE_PATH = project_path
+
+def update_navajoignore(project_path):
+    """ Returns a list of patterns to be matched against file paths in should_ignore using fnmatch
+    Unlike the gitignore, I'm not caching this - its pretty inexpensive to read the file and
+    I don't want to have to worry about invalidating the cache when the file changes
+
+    Args:
+        project_path (str): path to the project
+    
+    Returns:
+        list: list of patterns to be matched against file paths in should_ignore using fnmatch
+    """
+    global NAVAJOIGNORE_LIST
+
+    logging.debug(f"Updating navajoignore cache for {project_path}")
+    if not os.path.exists(os.path.join(project_path, '.navajoignore')):
+        logging.info(".navajoignore doesn't exist, skipping")
+        return []
+    
+    # Return all patterns in .navajoignore to be matched against file paths in should_ignore using fnmatch
+    with open(os.path.join(project_path, ".navajoignore")) as f:
+        NAVAJOIGNORE_LIST = [
+            re.compile(fnmatch.translate(line.strip()))
+            for line in f.readlines() 
+            if line.strip() and not line.startswith('#')
+        ]
 
 def is_gitignored(file_path, project_path): # TODO
     global GIT_FILES_LIST
@@ -146,6 +169,18 @@ def is_gitignored(file_path, project_path): # TODO
         return False
 
     return file_path not in GIT_FILES_LIST
+
+def is_navajoignored(file_path):
+    """ Returns True if the file path matches any of the patterns in .navajoignore
+
+    Args:
+        file_path (str): path to the file to be checked
+    """
+    global NAVAJOIGNORE_LIST
+    if not NAVAJOIGNORE_LIST:
+        return False
+    
+    return any(re.search(pattern, file_path) for pattern in NAVAJOIGNORE_LIST)
 
 def is_js_data(file_path):
     if ".js" not in file_path:
@@ -191,8 +226,11 @@ def should_ignore(filepath, project_path):
     if is_gitignored(filepath, project_path):
         _filter_log("GITIGNORE", True, filepath)
         return True
+    if is_navajoignored(filepath):
+        _filter_log("NAVAJOIGNORE", True, filepath)
+        return True
     if is_ignored_dir(filepath):
-        _filter_log("IN_GITDIR", True, filepath)
+        _filter_log("IGNORE_DIR", True, filepath)
         return True
     if not valid_mime(filepath):
         _filter_log("INVALID_MIME", True, filepath)

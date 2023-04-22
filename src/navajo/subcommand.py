@@ -90,6 +90,7 @@ def print_help():
         "list": "Show all indexed projects, and the currently selected one.",
         "use": "Set the current project.",
         "delete": "Delete a project locally.",
+        "quit": "Exit the program."
     }
 
     max_length = max(len(key) for key in commands.keys())

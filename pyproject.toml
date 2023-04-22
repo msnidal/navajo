@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "navajo"
+version = "0.4.2"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+dependencies = [
+  "filetype",
+  "gitpython",
+  "prompt-toolkit",
+  "pygments",
+  "requests",
+  "backoff",
+  "cachetools",
+  "flask",
+  "numpy",
+  "openai",
+  "openai[datalib]",
+  "parse",
+  "pyjwt",
+  "sseclient-py",
+  "tiktoken",
+  "tqdm",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest~=6.2.5",
+]
+
+[project.scripts]
+navajo = "navajo.main:main"
+
+[tool.pytest.ini_options]
+pythonpath = "src"
+addopts = [
+    "--import-mode=importlib",
+]
