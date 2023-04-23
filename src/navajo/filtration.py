@@ -7,12 +7,13 @@ import traceback
 import functools
 import fnmatch
 
+from pathspec.gitignore import GitIgnoreSpec
+
 from . import logconf
 
-_FILTER_LOG_ENABLED = False # TODO move to config file
 MAX_FILE_LEN = 300000
 GIT_FILES_LIST = None
-NAVAJOIGNORE_LIST = None
+NAVAJOIGNORE_SPEC = None
 JS_FUNC_OR_CLASS = re.compile(
     r"(export\s+)?(class|function)\s+[A-Za-z0-9_$]+\s*"
     r"|[\w\s]*=[\s]*(async\s+)?(\([\w\s,]*\)|\w+)\s*=>"
@@ -146,20 +147,16 @@ def update_navajoignore(project_path):
     Returns:
         list: list of patterns to be matched against file paths in should_ignore using fnmatch
     """
-    global NAVAJOIGNORE_LIST
+    global NAVAJOIGNORE_SPEC
 
     logging.debug(f"Updating navajoignore cache for {project_path}")
     if not os.path.exists(os.path.join(project_path, '.navajoignore')):
         logging.info(".navajoignore doesn't exist, skipping")
-        return []
+        return
     
-    # Return all patterns in .navajoignore to be matched against file paths in should_ignore using fnmatch
+    # GitIgnoreSpec replicates the behaviour of gitignore pattern matching
     with open(os.path.join(project_path, ".navajoignore")) as f:
-        NAVAJOIGNORE_LIST = [
-            re.compile(fnmatch.translate(line.strip()))
-            for line in f.readlines() 
-            if line.strip() and not line.startswith('#')
-        ]
+        NAVAJOIGNORE_SPEC = GitIgnoreSpec.from_lines(f)
 
 def is_gitignored(file_path, project_path): # TODO
     global GIT_FILES_LIST
@@ -176,11 +173,11 @@ def is_navajoignored(file_path):
     Args:
         file_path (str): path to the file to be checked
     """
-    global NAVAJOIGNORE_LIST
-    if not NAVAJOIGNORE_LIST:
+    global NAVAJOIGNORE_SPEC
+    if not NAVAJOIGNORE_SPEC:
         return False
     
-    return any(re.search(pattern, file_path) for pattern in NAVAJOIGNORE_LIST)
+    return NAVAJOIGNORE_SPEC.match_file(file_path)
 
 def is_js_data(file_path):
     if ".js" not in file_path:
@@ -194,7 +191,7 @@ def is_js_data(file_path):
             return False
 
         matches = JS_FUNC_OR_CLASS.findall(code, re.MULTILINE)
-        if _FILTER_LOG_ENABLED:
+        if logconf.FILTER_LOG_ENABLED:
             logging.debug(f"file {file_path} matched {matches}")
         count = len(matches)
 
@@ -210,7 +207,7 @@ def ignored_extension(file_path):
     return ext in ignore
 
 def _filter_log(reason, outcome, path):
-    if _FILTER_LOG_ENABLED:
+    if logconf.FILTER_LOG_ENABLED:
         logging.debug(f"Filter {outcome} due to {reason} for path {path}")
 
 def should_ignore(filepath, project_path):

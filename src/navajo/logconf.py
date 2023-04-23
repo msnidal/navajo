@@ -26,5 +26,6 @@ LOGGING_CONFIG = {
         }
     }
 }
+FILTER_LOG_ENABLED = False # Logs all file filtering decisions
 
 logging.config.dictConfig(LOGGING_CONFIG)

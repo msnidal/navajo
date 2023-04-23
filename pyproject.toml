@@ -24,6 +24,7 @@ dependencies = [
   "sseclient-py",
   "tiktoken",
   "tqdm",
+  "pathspec",
 ]
 
 [project.scripts]
