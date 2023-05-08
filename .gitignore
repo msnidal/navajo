@@ -13,3 +13,5 @@ build/
 dist/
 deploy.sh
 setup.py
+.navajoignore
+.python-version

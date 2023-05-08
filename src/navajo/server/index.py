@@ -7,6 +7,7 @@ import os
 import time
 import traceback
 import uuid
+import openai.error
 
 from . import database
 from . import logconf
@@ -21,13 +22,19 @@ from functools import lru_cache, partial
 INDEX_CACHE = cachetools.TTLCache(maxsize=64, ttl=300)
 database.init_project_db()
 
+
 def _summarize_file(pair):
     file_path, contents = pair
     if len(contents) > (50 * 1024 ** 2):
         logging.warning(f"Ignoring huge (>50MB) file {file_path}")
         return None
 
-    embedding = get_embedding(contents) # TODO rewrite to use embed_all
+    try:
+        embedding = get_embedding(contents) # TODO rewrite to use embed_all
+    except openai.error.InvalidRequestError as e:
+        logging.warning(f"Error getting embedding for file {file_path}: {e}")
+        return None
+
     literals = extract_code_literals(contents)
     entry = {
         'embedding': [round(x, 8) for x in embedding],
